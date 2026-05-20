@@ -1,4 +1,4 @@
-﻿document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", () => {
   const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const hasIntersectionObserver = "IntersectionObserver" in window;
 
@@ -91,7 +91,7 @@
   };
 
   const initVideoVisibility = () => {
-    const videos = Array.from(document.querySelectorAll(".service-card video, .cf-video-bg video"));
+    const videos = Array.from(document.querySelectorAll(".cf-video-bg video"));
     if (videos.length === 0 || prefersReducedMotion) return;
 
     // Lower playback cost on mobile.
@@ -122,168 +122,89 @@
     videos.forEach((video) => videoObserver.observe(video));
   };
 
-  const initCanvas = () => {
-    const canvas = document.getElementById("heroCanvas");
-    if (!(canvas instanceof HTMLCanvasElement) || prefersReducedMotion) return null;
+  const initTechCore = () => {
+    const nodes = document.querySelectorAll(".core-node");
+    const paths = {
+      ai: document.getElementById("line-ai"),
+      sec: document.getElementById("line-sec"),
+      cloud: document.getElementById("line-cloud"),
+      auto: document.getElementById("line-auto"),
+      ops: document.getElementById("line-ops"),
+      dev: document.getElementById("line-dev"),
+      net: document.getElementById("line-net"),
+      edge: document.getElementById("line-edge")
+    };
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-
-    let width = 0;
-    let height = 0;
-    let particles = [];
-    let rafId = 0;
-    let resizeTimer = 0;
-    let isRunning = true;
-    const mouse = { x: null, y: null, radius: window.matchMedia("(max-width: 760px)").matches ? 90 : 130 };
-
-    class Particle {
-      constructor() {
-        this.x = Math.random() * width;
-        this.y = Math.random() * height;
-        this.size = Math.random() * 1.6 + 0.4;
-        this.angle = Math.random() * Math.PI * 2;
-        this.speed = Math.random() * 0.35 + 0.12;
-        this.density = Math.random() * 20 + 5;
-        this.color = Math.random() > 0.75 ? "rgba(255, 123, 61, 0.72)" : "rgba(64, 224, 255, 0.8)";
-      }
-
-      update() {
-        this.angle += this.speed * 0.02;
-        this.x += Math.cos(this.angle) * this.speed;
-        this.y += Math.sin(this.angle) * this.speed;
-
-        if (mouse.x !== null && mouse.y !== null) {
-          const dx = mouse.x - this.x;
-          const dy = mouse.y - this.y;
-          const distance = Math.sqrt(dx * dx + dy * dy) || 1;
-          if (distance < mouse.radius) {
-            const force = (mouse.radius - distance) / mouse.radius;
-            this.x -= (dx / distance) * force * this.density;
-            this.y -= (dy / distance) * force * this.density;
-          }
-        }
-
-        if (this.x < 0) this.x = width;
-        if (this.x > width) this.x = 0;
-        if (this.y < 0) this.y = height;
-        if (this.y > height) this.y = 0;
-      }
-
-      draw() {
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fill();
-      }
+    // Pre-activate AI CORE on load to give system activity feel
+    const preActive = document.getElementById("node-ai");
+    if (preActive) {
+      preActive.classList.add("active");
+      if (paths.ai) paths.ai.classList.add("active");
     }
 
-    const initParticles = () => {
-      particles = [];
-      const mobile = window.matchMedia("(max-width: 760px)").matches;
-      const density = mobile ? 13000 : 9800;
-      const count = Math.min(95, Math.max(30, Math.floor((width * height) / density)));
-      for (let i = 0; i < count; i += 1) {
-        particles.push(new Particle());
-      }
-    };
+    nodes.forEach((node) => {
+      node.addEventListener("mouseenter", () => {
+        // Clear all active states
+        nodes.forEach((n) => n.classList.remove("active"));
+        Object.values(paths).forEach((p) => p && p.classList.remove("active"));
 
-    const resize = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const parent = canvas.parentElement;
-      if (!parent) return;
-      width = parent.clientWidth;
-      height = parent.clientHeight;
-      canvas.width = Math.floor(width * dpr);
-      canvas.height = Math.floor(height * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      mouse.radius = window.matchMedia("(max-width: 760px)").matches ? 90 : 130;
-      initParticles();
-    };
-
-    const drawConnections = () => {
-      const mobile = window.matchMedia("(max-width: 760px)").matches;
-      const maxDistance = mobile ? 72 : 96;
-      for (let i = 0; i < particles.length; i += 1) {
-        for (let j = i + 1; j < particles.length; j += 1) {
-          const dx = particles[i].x - particles[j].x;
-          const dy = particles[i].y - particles[j].y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          if (distance > maxDistance) continue;
-
-          const alpha = 0.2 - distance / 420;
-          const warm = particles[i].color.includes("255, 123, 61") || particles[j].color.includes("255, 123, 61");
-          ctx.strokeStyle = warm ? `rgba(255, 138, 72, ${alpha})` : `rgba(103, 221, 255, ${alpha})`;
-          ctx.lineWidth = 0.8;
-          ctx.beginPath();
-          ctx.moveTo(particles[i].x, particles[i].y);
-          ctx.lineTo(particles[j].x, particles[j].y);
-          ctx.stroke();
+        // Set hover target to active
+        node.classList.add("active");
+        const mod = node.getAttribute("data-module");
+        if (mod && paths[mod]) {
+          paths[mod].classList.add("active");
         }
-      }
-    };
-
-    const animate = () => {
-      if (!isRunning) return;
-      ctx.clearRect(0, 0, width, height);
-      particles.forEach((p) => {
-        p.update();
-        p.draw();
       });
-      drawConnections();
-      rafId = window.requestAnimationFrame(animate);
-    };
-
-    const onResize = () => {
-      window.clearTimeout(resizeTimer);
-      resizeTimer = window.setTimeout(() => {
-        window.cancelAnimationFrame(rafId);
-        resize();
-        animate();
-      }, 120);
-    };
-
-    canvas.addEventListener("mousemove", (e) => {
-      const rect = canvas.getBoundingClientRect();
-      mouse.x = e.clientX - rect.left;
-      mouse.y = e.clientY - rect.top;
     });
+  };
 
-    canvas.addEventListener("mouseleave", () => {
-      mouse.x = null;
-      mouse.y = null;
-    });
+  const statusPhrases = [
+    { prefix: "[ INITIALIZING ]", text: "YA VIENE" },
+    { prefix: "[ INITIALIZING ]", text: "INTELIGENCIA ARTIFICIAL APLICADA" },
+    { prefix: "[ INITIALIZING ]", text: "DESARROLLO WEB Y SOFTWARE" },
+    { prefix: "[ ACTIVE ]", text: "AUTOMATIZACIONES OPERATIVAS" },
+    { prefix: "[ ONLINE SOON ]", text: "CIBERSEGURIDAD EMPRESARIAL" },
+    { prefix: "[ DEPLOYING ]", text: "INFRAESTRUCTURA CLOUD" },
+    { prefix: "[ DEPLOYING ]", text: "REDES Y COMUNICACIONES" },
+    { prefix: "[ DEPLOYING ]", text: "SEGURIDAD PERIMETRAL" },
+    { prefix: "[ ONLINE SOON ]", text: "FORO Y COMUNIDAD" },
+    { prefix: "[ ONLINE SOON ]", text: "HELP CENTER" },
+    { prefix: "[ ACTIVE ]", text: "PROYECTOS EN DESPLIEGUE" },
+    { prefix: "[ ACTIVE ]", text: "NOTICIAS Y ACTUALIZACIONES" },
+    { prefix: "[ ONLINE SOON ]", text: "RESPUESTAS Y DOCUMENTACIÓN" },
+    { prefix: "[ INITIALIZING ]", text: "HACKTECK PLATFORM" },
+    { prefix: "[ ONLINE SOON ]", text: "SYSTEM ONLINE SOON" }
+  ];
 
-    window.addEventListener("resize", onResize, { passive: true });
+  const initStatusBanner = () => {
+    const prefixEl = document.getElementById("tickerPrefix");
+    const textEl = document.getElementById("tickerText");
+    const wrapperEl = document.querySelector(".status-ticker-wrapper");
+    if (!prefixEl || !textEl || !wrapperEl) return;
 
-    resize();
-    animate();
+    let currentIndex = 0;
 
-    return {
-      pause: () => {
-        isRunning = false;
-        window.cancelAnimationFrame(rafId);
-      },
-      resume: () => {
-        if (isRunning) return;
-        isRunning = true;
-        animate();
-      }
+    const cycleText = () => {
+      wrapperEl.classList.add("ticker-fade");
+
+      setTimeout(() => {
+        currentIndex = (currentIndex + 1) % statusPhrases.length;
+        const current = statusPhrases[currentIndex];
+        
+        prefixEl.textContent = current.prefix;
+        textEl.textContent = current.text;
+
+        wrapperEl.classList.remove("ticker-fade");
+      }, 400);
     };
+
+    setInterval(cycleText, 3500);
   };
 
   initReveal();
   initAnchorScroll();
   initParallax();
   initVideoVisibility();
-  const canvasController = initCanvas();
-
-  document.addEventListener("visibilitychange", () => {
-    if (!canvasController) return;
-    if (document.hidden) {
-      canvasController.pause();
-    } else {
-      canvasController.resume();
-    }
-  });
+  initTechCore();
+  initStatusBanner();
 });
